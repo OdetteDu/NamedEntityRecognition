@@ -31,7 +31,6 @@ public class FeatureFactory {
 	
 	private static List<Datum> read(String filename)
 			throws FileNotFoundException, IOException {
-	    // TODO: you'd want to handle sentence boundaries
 		List<Datum> data = new ArrayList<Datum>();
 		BufferedReader in = new BufferedReader(new FileReader(filename));
 		for (String line = in.readLine(); line != null; line = in.readLine()) {
@@ -41,6 +40,10 @@ public class FeatureFactory {
 			String[] bits = line.split("\\s+");
 			String word = bits[0];
 			String label = bits[1];
+			
+			if(word.equalsIgnoreCase("-DOCSTART-")) {
+				continue; // Ignore document boundary
+			}
 
 			Datum datum = new Datum(word, label);
 			data.add(datum);
@@ -54,17 +57,47 @@ public class FeatureFactory {
 	static SimpleMatrix allVecs; //access it directly in WindowModel
 	public static SimpleMatrix readWordVectors(String vecFilename) throws IOException {
 		if (allVecs!=null) return allVecs;
-		return null;
-		//TODO implement this
-		//set allVecs from filename		
-
+		
+		List<double[]> vectList = new ArrayList<double[]>();
+		BufferedReader in = new BufferedReader(new FileReader(vecFilename));
+		for (String line = in.readLine(); line != null; line = in.readLine()) {
+			String[] numList = line.trim().split("\\s+");
+			
+			double[]  vector = new double[numList.length];
+			for (int i=0;i<numList.length;i++) {
+				vector[i] = Double.parseDouble(numList[i]);
+			}
+			vectList.add(vector);
+		}
+		
+		allVecs = new SimpleMatrix(vectList.size(),vectList.get(0).length);
+		for (int i=0;i<vectList.size();i++) {
+			double[] vector = vectList.get(i);
+			for(int j=0;j<vector.length;j++) {
+				allVecs.set(i, j, vector[j]);
+			}
+		}
+		
+		return allVecs;
 	}
+	
 	// might be useful for word to number lookups, just access them directly in WindowModel
 	public static HashMap<String, Integer> wordToNum = new HashMap<String, Integer>(); 
 	public static HashMap<Integer, String> numToWord = new HashMap<Integer, String>();
 
 	public static HashMap<String, Integer> initializeVocab(String vocabFilename) throws IOException {
-		//TODO: create this
+		
+		BufferedReader in = new BufferedReader(new FileReader(vocabFilename));
+		int index = 0;
+		for (String line = in.readLine(); line != null; line = in.readLine()) {
+			String word = line.trim();
+			if (word.length() == 0) {
+				continue;
+			}
+			wordToNum.put(word, index);
+			numToWord.put(index, word);
+			index++;
+		}
 		return wordToNum;
 	}
  

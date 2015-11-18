@@ -10,7 +10,7 @@ public class NER {
     
     public static void main(String[] args) throws IOException {
 	if (args.length < 2) {
-	    System.out.println("USAGE: java -cp classes NER ../data/train ../data/dev");
+	    System.out.println("USAGE: java -cp classes NER ../data/train ../data/dev"); // ../data -> ./data/ in our project
 	    return;
 	}	    
 
@@ -19,10 +19,10 @@ public class NER {
 	List<Datum> testData = FeatureFactory.readTestData(args[1]);	
 	
 	//	read the train and test data
-	//TODO: Implement this function (just reads in vocab and word vectors)
-	FeatureFactory.initializeVocab("../data/vocab.txt");
-	SimpleMatrix allVecs= FeatureFactory.readWordVectors("../data/wordVectors.txt");
-
+	FeatureFactory.initializeVocab("./data/vocab.txt");
+	SimpleMatrix allVecs = FeatureFactory.readWordVectors("./data/wordVectors.txt");
+	allVecs.printDimensions();
+	
 	// initialize model 
 	WindowModel model = new WindowModel(5, 100,0.001);
 	model.initWeights();
