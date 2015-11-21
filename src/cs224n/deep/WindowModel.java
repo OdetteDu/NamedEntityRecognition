@@ -13,6 +13,7 @@ public class WindowModel {
 	private HashMap<String, String> baselineWordMap;
 	protected SimpleMatrix L, W, U;
 	public int windowSize, wordSize, hiddenSize;
+	
 
 	public WindowModel(int _windowSize, int _hiddenSize, double _lr) {
 		baselineWordMap = new HashMap<String, String>();
@@ -23,7 +24,7 @@ public class WindowModel {
 	 */
 	public void initWeights() {
 		// TODO Add one more column for b
-		int H = hiddenSize; // fanOut = H
+		int H = hiddenSize + 1; // fanOut = H
 		int Cn = windowSize * FeatureFactory.allVecs.numRows(); // fanIn = nC
 		int K = Datum.POSSIBLE_LABELS.length;
 		double range = Math.sqrt(6) / Math.sqrt(H + Cn);
@@ -68,15 +69,23 @@ public class WindowModel {
 	
 	private void nnTrain(List<Datum> trainData)
 	{
-		
+		for (int i=2; i<trainData.size(); i++)
+		{
+			getWordVector(trainData.get(i-2), trainData.get(i-1), trainData.get(i));
+		}
 	}
 	
-	private void nnTest(List<Datum> testData)
+	private void getWordVector(Datum first, Datum second, Datum third)
 	{
 		
 	}
 	
 	private void getWordVector(String word)
+	{
+		
+	}
+	
+	private void nnTest(List<Datum> testData)
 	{
 		
 	}
