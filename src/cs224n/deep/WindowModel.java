@@ -36,10 +36,12 @@ public class WindowModel {
 	 */
 	public void train(List<Datum> trainData) {
 		this.baselineTrain(trainData);
+		this.nnTrain(trainData);
 	}
 
 	public void test(List<Datum> testData) {
 		this.baselineTest(testData);
+		this.nnTest(testData);
 	}
 
 	private void baselineTrain(List<Datum> trainData) {
@@ -62,6 +64,21 @@ public class WindowModel {
 			output.add(new Prediction(word, datum.label, predictedLabel));
 		}
 		this.outputToFile("baseline.out", output);
+	}
+	
+	private void nnTrain(List<Datum> trainData)
+	{
+		
+	}
+	
+	private void nnTest(List<Datum> testData)
+	{
+		
+	}
+	
+	private void getWordVector(String word)
+	{
+		
 	}
 
 	public void outputToFile(String fileName, List<Prediction> predictions) {
