@@ -86,6 +86,7 @@ public class FeatureFactory {
 			}
 		}
 
+		allVecs = allVecs.transpose();
 		return allVecs;
 	}
 

@@ -12,24 +12,27 @@ public class WindowModel {
 
 	private HashMap<String, String> baselineWordMap;
 	protected SimpleMatrix L, W, U;
-	public int windowSize, wordSize, hiddenSize;
+	public int windowSize;
+//	public int wordSize;
+	public int hiddenSize;
 	
 
 	public WindowModel(int _windowSize, int _hiddenSize, double _lr) {
-		baselineWordMap = new HashMap<String, String>();
+		this.baselineWordMap = new HashMap<String, String>();
+		this.windowSize = _windowSize;
+		this.hiddenSize = _hiddenSize;
 	}
 
 	/**
 	 * Initializes the weights randomly.
 	 */
 	public void initWeights() {
-		// TODO Add one more column for b
-		int H = hiddenSize + 1; // fanOut = H
+		int H = hiddenSize; // fanOut = H
 		int Cn = windowSize * FeatureFactory.allVecs.numRows(); // fanIn = nC
 		int K = Datum.POSSIBLE_LABELS.length;
 		double range = Math.sqrt(6) / Math.sqrt(H + Cn);
-		W = SimpleMatrix.random(H, Cn, -range, range, new Random());
-		U = SimpleMatrix.random(K, H, -range, range, new Random());
+		W = SimpleMatrix.random(H, Cn + 1, -range, range, new Random());
+		U = SimpleMatrix.random(K, H + 1, -range, range, new Random());
 	}
 
 	/**
@@ -69,10 +72,13 @@ public class WindowModel {
 	
 	private void nnTrain(List<Datum> trainData)
 	{
+		System.out.println("W: "+W.numRows()+" * "+W.numCols());
+		System.out.println("U: "+U.numRows()+" * "+U.numCols());
 		for (int i=2; i<trainData.size(); i++)
 		{
-			SimpleMatrix sm = getWordVector(trainData.get(i-2), trainData.get(i-1), trainData.get(i));
-			sm.print();
+			SimpleMatrix X = getWordVector(trainData.get(i-2), trainData.get(i-1), trainData.get(i));
+			System.out.println("X: "+X.numRows()+" * "+X.numCols());
+			SimpleMatrix WX = W.mult(X);
 		}
 	}
 	
@@ -106,7 +112,7 @@ public class WindowModel {
 		double[] secondVector = this.getWordVector(second.word);
 		
 		// Concatenate the three vectors
-		double[] finalVector = new double[firstVector.length + secondVector.length + thirdVector.length];
+		double[] finalVector = new double[firstVector.length + secondVector.length + thirdVector.length + 1];
 		for (int i=0; i<firstVector.length; i++)
 		{
 			finalVector[i] = firstVector[i];
@@ -121,6 +127,9 @@ public class WindowModel {
 		{
 			finalVector[i+firstVector.length+secondVector.length] = thirdVector[i];
 		}
+		
+		//Bias term
+		finalVector[finalVector.length-1] = 1;
 		
 		double [][] matrixData = {finalVector};
 		SimpleMatrix sm = new SimpleMatrix(matrixData);
@@ -138,10 +147,10 @@ public class WindowModel {
 		{
 			index = FeatureFactory.NON_EXISTING_VOCAB_INDEX;
 		}
-		double[] vector = new double[FeatureFactory.allVecs.numCols()];
+		double[] vector = new double[FeatureFactory.allVecs.numRows()];
 		for (int i=0; i<vector.length; i++)
 		{
-			vector[i] = FeatureFactory.allVecs.get(index, i);
+			vector[i] = FeatureFactory.allVecs.get(i, index);
 		}
 		return vector;
 	}
