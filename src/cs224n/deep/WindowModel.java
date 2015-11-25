@@ -71,18 +71,79 @@ public class WindowModel {
 	{
 		for (int i=2; i<trainData.size(); i++)
 		{
-			getWordVector(trainData.get(i-2), trainData.get(i-1), trainData.get(i));
+			SimpleMatrix sm = getWordVector(trainData.get(i-2), trainData.get(i-1), trainData.get(i));
+			sm.print();
 		}
 	}
 	
-	private void getWordVector(Datum first, Datum second, Datum third)
+	private SimpleMatrix getWordVector(Datum first, Datum second, Datum third)
 	{
+		if (second.word.equals(Datum.SEPARATE_WORD))
+		{
+			return null;
+		}
 		
+		double[] firstVector;
+		if (first.word.equals(Datum.SEPARATE_WORD))
+		{
+			firstVector = this.getWordVector(Datum.START_WORD);
+		}
+		else
+		{
+			firstVector = this.getWordVector(first.word);
+		}
+		
+		double[] thirdVector;
+		if (third.word.equals(Datum.SEPARATE_WORD))
+		{
+			thirdVector = this.getWordVector(Datum.END_WORD);
+		}
+		else
+		{
+			thirdVector = this.getWordVector(third.word);
+		}
+		
+		double[] secondVector = this.getWordVector(second.word);
+		
+		// Concatenate the three vectors
+		double[] finalVector = new double[firstVector.length + secondVector.length + thirdVector.length];
+		for (int i=0; i<firstVector.length; i++)
+		{
+			finalVector[i] = firstVector[i];
+		}
+		
+		for (int i=0; i<secondVector.length; i++)
+		{
+			finalVector[i+firstVector.length] = secondVector[i];
+		}
+		
+		for (int i=0; i<thirdVector.length; i++)
+		{
+			finalVector[i+firstVector.length+secondVector.length] = thirdVector[i];
+		}
+		
+		double [][] matrixData = {finalVector};
+		SimpleMatrix sm = new SimpleMatrix(matrixData);
+		return sm.transpose();
 	}
 	
-	private void getWordVector(String word)
+	private double[] getWordVector(String word)
 	{
-		
+		int index;
+		if(FeatureFactory.wordToNum.containsKey(word))
+		{
+			index = FeatureFactory.wordToNum.get(word);
+		}
+		else
+		{
+			index = FeatureFactory.NON_EXISTING_VOCAB_INDEX;
+		}
+		double[] vector = new double[FeatureFactory.allVecs.numCols()];
+		for (int i=0; i<vector.length; i++)
+		{
+			vector[i] = FeatureFactory.allVecs.get(index, i);
+		}
+		return vector;
 	}
 	
 	private void nnTest(List<Datum> testData)

@@ -9,11 +9,11 @@ import org.ejml.simple.*;
 
 public class FeatureFactory {
 
+	public static final int NON_EXISTING_VOCAB_INDEX = 0;
 
 	private FeatureFactory() {
 
 	}
-
 
 	static List<Datum> trainData;
 	/** Do not modify this method **/
