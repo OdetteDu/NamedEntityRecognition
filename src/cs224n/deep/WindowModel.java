@@ -13,14 +13,15 @@ public class WindowModel {
 	private HashMap<String, String> baselineWordMap;
 	protected SimpleMatrix L, W, U;
 	public int windowSize;
-//	public int wordSize;
+	public int wordVectorSize;
 	public int hiddenSize;
-	
+
 
 	public WindowModel(int _windowSize, int _hiddenSize, double _lr) {
 		this.baselineWordMap = new HashMap<String, String>();
 		this.windowSize = _windowSize;
 		this.hiddenSize = _hiddenSize;
+		this.wordVectorSize = FeatureFactory.allVecs.numRows();
 	}
 
 	/**
@@ -28,7 +29,7 @@ public class WindowModel {
 	 */
 	public void initWeights() {
 		int H = hiddenSize; // fanOut = H
-		int Cn = windowSize * FeatureFactory.allVecs.numRows(); // fanIn = nC
+		int Cn = windowSize * wordVectorSize; // fanIn = nC
 		int K = Datum.POSSIBLE_LABELS.length;
 		double range = Math.sqrt(6) / Math.sqrt(H + Cn);
 		W = SimpleMatrix.random(H, Cn + 1, -range, range, new Random());
@@ -69,73 +70,94 @@ public class WindowModel {
 		}
 		this.outputToFile("baseline.out", output);
 	}
-	
+
 	private void nnTrain(List<Datum> trainData)
 	{
 		System.out.println("W: "+W.numRows()+" * "+W.numCols());
 		System.out.println("U: "+U.numRows()+" * "+U.numCols());
-		for (int i=2; i<trainData.size(); i++)
+		for (int i=windowSize-1; i<trainData.size(); i++)
 		{
-			SimpleMatrix X = getWordVector(trainData.get(i-2), trainData.get(i-1), trainData.get(i));
-			System.out.println("X: "+X.numRows()+" * "+X.numCols());
-			SimpleMatrix WX = W.mult(X);
+			String[] wordsInWindow = new String[windowSize];
+			int index = 0;
+			for (int j=i-(windowSize-1); j<=i; j++)
+			{
+				wordsInWindow[index] = trainData.get(j).word;
+				index++;
+			}
+			SimpleMatrix X = getWordVector(wordsInWindow);
+			if (X != null)
+			{
+//				System.out.println("X: "+X.numRows()+" * "+X.numCols());
+				SimpleMatrix WX = W.mult(X);
+			}
 		}
 	}
-	
-	private SimpleMatrix getWordVector(Datum first, Datum second, Datum third)
+
+	private SimpleMatrix getWordVector(String[] wordsInWindow)
 	{
-		if (second.word.equals(Datum.SEPARATE_WORD))
+		if (wordsInWindow.length < 2)
 		{
 			return null;
 		}
 		
+		for (int i=1; i<wordsInWindow.length-1; i++)
+		{
+			if (wordsInWindow[i].equals(Datum.SEPARATE_WORD))
+			{
+				return null;
+			}
+		}
+
 		double[] firstVector;
-		if (first.word.equals(Datum.SEPARATE_WORD))
+		if (wordsInWindow[0].equals(Datum.SEPARATE_WORD))
 		{
 			firstVector = this.getWordVector(Datum.START_WORD);
 		}
 		else
 		{
-			firstVector = this.getWordVector(first.word);
+			firstVector = this.getWordVector(wordsInWindow[0]);
 		}
-		
-		double[] thirdVector;
-		if (third.word.equals(Datum.SEPARATE_WORD))
+
+		double[] lastVector;
+		if (wordsInWindow[wordsInWindow.length-1].equals(Datum.SEPARATE_WORD))
 		{
-			thirdVector = this.getWordVector(Datum.END_WORD);
+			lastVector = this.getWordVector(Datum.END_WORD);
 		}
 		else
 		{
-			thirdVector = this.getWordVector(third.word);
+			lastVector = this.getWordVector(wordsInWindow[wordsInWindow.length-1]);
 		}
-		
-		double[] secondVector = this.getWordVector(second.word);
-		
+
+		double[] finalVector = new double[wordVectorSize * wordsInWindow.length + 1];
+
 		// Concatenate the three vectors
-		double[] finalVector = new double[firstVector.length + secondVector.length + thirdVector.length + 1];
 		for (int i=0; i<firstVector.length; i++)
 		{
 			finalVector[i] = firstVector[i];
 		}
-		
-		for (int i=0; i<secondVector.length; i++)
+
+		for (int i=1; i<wordsInWindow.length-1; i++)
 		{
-			finalVector[i+firstVector.length] = secondVector[i];
+			double[] middleVector = this.getWordVector(wordsInWindow[i]);
+			for (int j=0; j<middleVector.length; j++)
+			{
+				finalVector[wordVectorSize * i + j] = middleVector[j];
+			}
 		}
-		
-		for (int i=0; i<thirdVector.length; i++)
+
+		for (int i=0; i<lastVector.length; i++)
 		{
-			finalVector[i+firstVector.length+secondVector.length] = thirdVector[i];
+			finalVector[i+wordVectorSize * (wordsInWindow.length-1)] = lastVector[i];
 		}
-		
+
 		//Bias term
 		finalVector[finalVector.length-1] = 1;
-		
+
 		double [][] matrixData = {finalVector};
 		SimpleMatrix sm = new SimpleMatrix(matrixData);
 		return sm.transpose();
 	}
-	
+
 	private double[] getWordVector(String word)
 	{
 		int index;
@@ -147,17 +169,17 @@ public class WindowModel {
 		{
 			index = FeatureFactory.NON_EXISTING_VOCAB_INDEX;
 		}
-		double[] vector = new double[FeatureFactory.allVecs.numRows()];
+		double[] vector = new double[wordVectorSize];
 		for (int i=0; i<vector.length; i++)
 		{
 			vector[i] = FeatureFactory.allVecs.get(i, index);
 		}
 		return vector;
 	}
-	
+
 	private void nnTest(List<Datum> testData)
 	{
-		
+
 	}
 
 	public void outputToFile(String fileName, List<Prediction> predictions) {
