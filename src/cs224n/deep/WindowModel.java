@@ -94,6 +94,7 @@ public class WindowModel {
 //				System.out.println("H: "+H.numRows()+" * "+H.numCols());
 				SimpleMatrix O = U.mult(H); //5 * 1
 //				System.out.println("O: "+O.numRows()+" * "+O.numCols());
+				double[] P = this.getSoftmax(this.getCol(O, 0));
 			}
 		}
 	}
@@ -194,6 +195,22 @@ public class WindowModel {
 			tanh[i] = Math.tanh(input[i]);
 		}
 		return tanh;
+	}
+	
+	private double[] getSoftmax(double[] input)
+	{
+		double output[] = new double[input.length];
+		double sum = 0;
+		for(int i=0; i<input.length; i++)
+		{
+			output[i] = Math.exp(input[i]);
+			sum += output[i];
+		}
+		for(int i=0; i<output.length; i++)
+		{
+			output[i] = output[i]/sum;
+		}
+		return output;
 	}
 	
 	public double[] addExtraOne(double[] input)
