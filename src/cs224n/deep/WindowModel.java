@@ -100,10 +100,18 @@ public class WindowModel {
 				SimpleMatrix delta2 = P.minus(Y); //5 * 1
 				SimpleMatrix UPrime = delta2.mult(H.transpose()); //5 * 101
 				U = U.plus(UPrime.scale(alpha)); //5 * 101
+				if(Double.isNaN(U.get(0,0)))
+				{
+					System.out.println(U);
+				}
 				SimpleMatrix delta1 = U.transpose().mult(delta2).elementMult(getDTanh(Z)); //101 * 1
 				delta1 = removeExtraRow(delta1); //100 * 1
 				SimpleMatrix WPrime = delta1.mult(X.transpose()); //100 * 251
 				W = W.plus(WPrime.scale(alpha)); //100 * 251
+				if(Double.isNaN(W.get(0, 0)))
+				{
+					System.out.println(W);
+				}
 				SimpleMatrix XPrime = W.transpose().mult(delta1); //251 * 1
 				updateWordVector(wordsInWindow, XPrime);
 			}
@@ -277,6 +285,10 @@ public class WindowModel {
 		for (int i=0; i<input.numRows(); i++)
 		{
 			tanh[i] = Math.tanh(input.get(i, 0));
+			if(Double.isNaN(tanh[i]))
+			{
+				System.out.println(input);
+			}
 		}
 		tanh[tanh.length-1] = 1;
 		double[][] tanHData = {tanh};
@@ -290,6 +302,10 @@ public class WindowModel {
 		{
 			tanh[i] = Math.tanh(input.get(i, 0));
 			tanh[i] = 1 - tanh[i] * tanh[i];
+			if(Double.isNaN(tanh[i]))
+			{
+				System.out.println(input);
+			}
 		}
 		tanh[tanh.length-1] = 1;
 		double[][] tanHData = {tanh};
@@ -298,18 +314,31 @@ public class WindowModel {
 
 	private SimpleMatrix getSoftmax(SimpleMatrix input)
 	{
-		double softMax[] = new double[input.numRows()];
+		double[] softMax = new double[input.numRows()];
+		double max = 0;
+		for(int i=0; i<input.numRows(); i++)
+		{
+			if(input.get(i, 0) > max)
+			{
+				max = input.get(i, 0);
+			}
+		}
 		double sum = 0;
 		for(int i=0; i<input.numRows(); i++)
 		{
-			softMax[i] = Math.exp(input.get(i, 0));
+			softMax[i] = Math.exp(input.get(i, 0) - max);
 			sum += softMax[i];
 		}
+		double[] output = new double[input.numRows()];
 		for(int i=0; i<softMax.length; i++)
 		{
-			softMax[i] = softMax[i]/sum;
+			output[i] = softMax[i]/sum;
+			if(Double.isNaN(output[i]))
+			{
+				System.out.println(input);
+			}
 		}
-		double[][] softMaxData = {softMax};
+		double[][] softMaxData = {output};
 		return new SimpleMatrix(softMaxData).transpose();
 	}
 
