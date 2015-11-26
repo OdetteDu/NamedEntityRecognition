@@ -20,7 +20,8 @@ public class WindowModel {
 
 	public WindowModel(int _windowSize, int _hiddenSize, double _lr) {
 		this.baselineWordMap = new HashMap<String, String>();
-		this.wordVectorSize = FeatureFactory.allVecs.numRows();
+		this.L = FeatureFactory.allVecs;
+		this.wordVectorSize = L.numRows();
 		this.windowSize = _windowSize;
 		this.hiddenSize = _hiddenSize;
 		this.alpha = _lr;
@@ -229,7 +230,7 @@ public class WindowModel {
 			index = FeatureFactory.NON_EXISTING_VOCAB_INDEX;
 		}
 
-		return getCol(FeatureFactory.allVecs, index);
+		return getCol(L, index);
 	}
 
 	private void updateWordVector(Datum[] wordsInWindow, SimpleMatrix vector)
@@ -248,8 +249,8 @@ public class WindowModel {
 			}
 			for (int j=0; j<this.wordVectorSize; j++)
 			{
-				double originValue = FeatureFactory.allVecs.get(j, colIndex);
-				FeatureFactory.allVecs.set(j, colIndex, originValue + alpha * vector.get(vectorIndex, 0));
+				double originValue = L.get(j, colIndex);
+				L.set(j, colIndex, originValue + alpha * vector.get(vectorIndex, 0));
 				vectorIndex ++;
 			}
 		}

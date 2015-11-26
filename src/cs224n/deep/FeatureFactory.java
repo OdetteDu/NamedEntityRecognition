@@ -44,7 +44,7 @@ public class FeatureFactory {
 			else
 			{
 				String[] bits = line.split("\\s+");
-				word = bits[0];
+				word = bits[0].toLowerCase();
 				label = bits[1];
 
 				if(word.equalsIgnoreCase("-DOCSTART-")) 
