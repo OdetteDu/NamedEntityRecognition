@@ -87,7 +87,7 @@ public class WindowModel {
 				index++;
 			}
 			wordsInWindow = getAdjustedWordInWindow(wordsInWindow);
-			
+
 			if (wordsInWindow != null)
 			{
 				SimpleMatrix X = getWordVector(wordsInWindow); //251 * 1
@@ -107,15 +107,63 @@ public class WindowModel {
 				updateWordVector(wordsInWindow, XPrime);
 			}
 		}
+		System.out.println("Finished Training");
 	}
-	
+
+	private void nnTest(List<Datum> testData)
+	{
+		List<Prediction> output = new ArrayList<Prediction>();
+		for (int i=windowSize-1; i<testData.size(); i++)
+		{
+			Datum[] wordsInWindow = new Datum[windowSize];
+			int index = 0;
+			for (int j=i-(windowSize-1); j<=i; j++)
+			{
+				wordsInWindow[index] = testData.get(j);
+				index++;
+			}
+			wordsInWindow = getAdjustedWordInWindow(wordsInWindow);
+
+			if (wordsInWindow != null)
+			{
+				Datum word = wordsInWindow[wordsInWindow.length/2];
+				if (!word.word.equals(Datum.START_WORD) && !word.word.equals(Datum.END_WORD))
+				{
+					SimpleMatrix X = getWordVector(wordsInWindow); //251 * 1
+					SimpleMatrix Z = W.mult(X); //100 * 1
+					SimpleMatrix H = getTanh(Z); //101 * 1
+					SimpleMatrix O = U.mult(H); //5 * 1
+					SimpleMatrix P = getSoftmax(O); //5 * 1
+					String label = getLabel(P);
+					output.add(new Prediction(word.word, word.label, label));
+				}
+			}
+		}
+		this.outputToFile("nn.out", output);
+	}
+
+	private String getLabel(SimpleMatrix p)
+	{
+		double max = 0;
+		String label = null;
+		for(int i=0; i<p.numRows(); i++)
+		{
+			if(p.get(i, 0) > max)
+			{
+				max = p.get(i, 0);
+				label = Datum.POSSIBLE_LABELS[i];
+			}
+		}
+		return label;
+	}
+
 	private Datum[] getAdjustedWordInWindow(Datum[] wordsInWindow)
 	{
 		if (wordsInWindow.length < 2)
 		{
 			return null;
 		}
-		
+
 		for (int i=1; i<wordsInWindow.length-1; i++)
 		{
 			if (wordsInWindow[i].equals(Datum.SEPARATE_WORD))
@@ -180,7 +228,7 @@ public class WindowModel {
 		{
 			index = FeatureFactory.NON_EXISTING_VOCAB_INDEX;
 		}
-		
+
 		return getCol(FeatureFactory.allVecs, index);
 	}
 
@@ -206,7 +254,7 @@ public class WindowModel {
 			}
 		}
 	}
-	
+
 	private SimpleMatrix getY(Datum[] wordsInWindow)
 	{
 		double[] y = new double[Datum.POSSIBLE_LABELS.length];
@@ -221,7 +269,7 @@ public class WindowModel {
 		double[][] yData = {y};
 		return new SimpleMatrix(yData).transpose();
 	}
-	
+
 	private SimpleMatrix getTanh(SimpleMatrix input)
 	{
 		double[] tanh = new double[input.numRows() + 1];
@@ -233,7 +281,7 @@ public class WindowModel {
 		double[][] tanHData = {tanh};
 		return new SimpleMatrix(tanHData).transpose();
 	}
-	
+
 	private SimpleMatrix getDTanh(SimpleMatrix input)
 	{
 		double[] tanh = new double[input.numRows() + 1];
@@ -246,7 +294,7 @@ public class WindowModel {
 		double[][] tanHData = {tanh};
 		return new SimpleMatrix(tanHData).transpose();
 	}
-	
+
 	private SimpleMatrix getSoftmax(SimpleMatrix input)
 	{
 		double softMax[] = new double[input.numRows()];
@@ -263,8 +311,8 @@ public class WindowModel {
 		double[][] softMaxData = {softMax};
 		return new SimpleMatrix(softMaxData).transpose();
 	}
-	
-	public SimpleMatrix removeExtraRow(SimpleMatrix input)
+
+	private SimpleMatrix removeExtraRow(SimpleMatrix input)
 	{
 		double[] output = new double[input.numRows() - 1];
 		for (int i=0; i<input.numRows() - 1; i++)
@@ -274,8 +322,8 @@ public class WindowModel {
 		double[][] outputData = {output};
 		return new SimpleMatrix(outputData).transpose();
 	}
-	
-	public double[] getRow(SimpleMatrix sm, int row)
+
+	private double[] getRow(SimpleMatrix sm, int row)
 	{
 		double[] vector = new double[sm.numCols()];
 		for (int i=0; i<vector.length; i++)
@@ -284,8 +332,8 @@ public class WindowModel {
 		}
 		return vector;
 	}
-	
-	public double[] getCol(SimpleMatrix sm, int col)
+
+	private double[] getCol(SimpleMatrix sm, int col)
 	{
 		double[] vector = new double[sm.numRows()];
 		for (int i=0; i<vector.length; i++)
@@ -293,11 +341,6 @@ public class WindowModel {
 			vector[i] = sm.get(i, col);
 		}
 		return vector;
-	}
-	
-	private void nnTest(List<Datum> testData)
-	{
-
 	}
 
 	public void outputToFile(String fileName, List<Prediction> predictions) {
