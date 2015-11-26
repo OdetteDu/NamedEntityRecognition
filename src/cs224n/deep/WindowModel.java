@@ -12,16 +12,18 @@ public class WindowModel {
 
 	private HashMap<String, String> baselineWordMap;
 	protected SimpleMatrix L, W, U;
-	public int windowSize;
 	public int wordVectorSize;
+	public int windowSize;
 	public int hiddenSize;
+	public double alpha;
 
 
 	public WindowModel(int _windowSize, int _hiddenSize, double _lr) {
 		this.baselineWordMap = new HashMap<String, String>();
+		this.wordVectorSize = FeatureFactory.allVecs.numRows();
 		this.windowSize = _windowSize;
 		this.hiddenSize = _hiddenSize;
-		this.wordVectorSize = FeatureFactory.allVecs.numRows();
+		this.alpha = _lr;
 	}
 
 	/**
@@ -77,29 +79,29 @@ public class WindowModel {
 		System.out.println("U: "+U.numRows()+" * "+U.numCols());
 		for (int i=windowSize-1; i<trainData.size(); i++)
 		{
-			String[] wordsInWindow = new String[windowSize];
+			Datum[] wordsInWindow = new Datum[windowSize];
 			int index = 0;
 			for (int j=i-(windowSize-1); j<=i; j++)
 			{
-				wordsInWindow[index] = trainData.get(j).word;
+				wordsInWindow[index] = trainData.get(j);
 				index++;
 			}
 			SimpleMatrix X = getWordVector(wordsInWindow); //100 * 251
 			if (X != null)
 			{
-//				System.out.println("X: "+X.numRows()+" * "+X.numCols());
 				SimpleMatrix Z = W.mult(X); //100 * 1
-//				System.out.println("Z: "+Z.numRows()+" * "+Z.numCols());
 				SimpleMatrix H = getTanh(Z); //101 * 1
-//				System.out.println("H: "+H.numRows()+" * "+H.numCols());
 				SimpleMatrix O = U.mult(H); //5 * 1
-//				System.out.println("O: "+O.numRows()+" * "+O.numCols());
-				double[] P = this.getSoftmax(this.getCol(O, 0));
+				SimpleMatrix P = getSoftmax(O); //5 * 1
+				SimpleMatrix Y = getY(wordsInWindow); //5 * 1
+				SimpleMatrix delta2 = P.minus(Y); //5 * 1
+				SimpleMatrix UPrime = delta2.mult(H.transpose()); //5 * 101
+				U = U.plus(UPrime.scale(alpha)); //5 * 101
 			}
 		}
 	}
 
-	private SimpleMatrix getWordVector(String[] wordsInWindow)
+	private SimpleMatrix getWordVector(Datum[] wordsInWindow)
 	{
 		if (wordsInWindow.length < 2)
 		{
@@ -121,7 +123,7 @@ public class WindowModel {
 		}
 		else
 		{
-			firstVector = this.getWordVector(wordsInWindow[0]);
+			firstVector = this.getWordVector(wordsInWindow[0].word);
 		}
 
 		double[] lastVector;
@@ -131,7 +133,7 @@ public class WindowModel {
 		}
 		else
 		{
-			lastVector = this.getWordVector(wordsInWindow[wordsInWindow.length-1]);
+			lastVector = this.getWordVector(wordsInWindow[wordsInWindow.length-1].word);
 		}
 
 		double[] finalVector = new double[wordVectorSize * wordsInWindow.length + 1];
@@ -144,7 +146,7 @@ public class WindowModel {
 
 		for (int i=1; i<wordsInWindow.length-1; i++)
 		{
-			double[] middleVector = this.getWordVector(wordsInWindow[i]);
+			double[] middleVector = this.getWordVector(wordsInWindow[i].word);
 			for (int j=0; j<middleVector.length; j++)
 			{
 				finalVector[wordVectorSize * i + j] = middleVector[j];
@@ -179,6 +181,17 @@ public class WindowModel {
 		return getCol(FeatureFactory.allVecs, index);
 	}
 
+	private SimpleMatrix getY(Datum[] wordsInWindow)
+	{
+		double[] y = new double[wordsInWindow.length];
+		for (int i=0; i<wordsInWindow.length; i++)
+		{
+			y[i] = 1; //TODO assign the value of y according to the label
+		}
+		double[][] yData = {y};
+		return new SimpleMatrix(yData).transpose();
+	}
+	
 	private SimpleMatrix getTanh(SimpleMatrix input)
 	{
 		double[] tanh = this.getTanh(this.getCol(input, 0));
@@ -195,6 +208,13 @@ public class WindowModel {
 			tanh[i] = Math.tanh(input[i]);
 		}
 		return tanh;
+	}
+	
+	private SimpleMatrix getSoftmax(SimpleMatrix input)
+	{
+		double[] softMax = this.getSoftmax(this.getCol(input, 0));
+		double[][] softMaxData = {softMax};
+		return new SimpleMatrix(softMaxData).transpose();
 	}
 	
 	private double[] getSoftmax(double[] input)
