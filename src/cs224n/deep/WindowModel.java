@@ -97,6 +97,8 @@ public class WindowModel {
 				SimpleMatrix delta2 = P.minus(Y); //5 * 1
 				SimpleMatrix UPrime = delta2.mult(H.transpose()); //5 * 101
 				U = U.plus(UPrime.scale(alpha)); //5 * 101
+				SimpleMatrix delta1 = U.transpose().mult(delta2).elementMult(getDTanh(Z));
+				System.out.println("delta1: "+delta1.numRows()+" * "+delta1.numCols());
 			}
 		}
 	}
@@ -194,43 +196,44 @@ public class WindowModel {
 	
 	private SimpleMatrix getTanh(SimpleMatrix input)
 	{
-		double[] tanh = this.getTanh(this.getCol(input, 0));
-		tanh = this.addExtraOne(tanh);
+		double[] tanh = new double[input.numRows() + 1];
+		for (int i=0; i<input.numRows(); i++)
+		{
+			tanh[i] = Math.tanh(input.get(i, 0));
+		}
+		tanh[tanh.length-1] = 1;
 		double[][] tanHData = {tanh};
 		return new SimpleMatrix(tanHData).transpose();
 	}
 	
-	private double[] getTanh(double[] input)
+	private SimpleMatrix getDTanh(SimpleMatrix input)
 	{
-		double[] tanh = new double[input.length];
-		for (int i=0; i<input.length; i++)
+		double[] tanh = new double[input.numRows() + 1];
+		for (int i=0; i<input.numRows(); i++)
 		{
-			tanh[i] = Math.tanh(input[i]);
+			tanh[i] = Math.tanh(input.get(i, 0));
+			tanh[i] = 1 - tanh[i] * tanh[i];
 		}
-		return tanh;
+		tanh[tanh.length-1] = 1;
+		double[][] tanHData = {tanh};
+		return new SimpleMatrix(tanHData).transpose();
 	}
 	
 	private SimpleMatrix getSoftmax(SimpleMatrix input)
 	{
-		double[] softMax = this.getSoftmax(this.getCol(input, 0));
+		double softMax[] = new double[input.numRows()];
+		double sum = 0;
+		for(int i=0; i<input.numRows(); i++)
+		{
+			softMax[i] = Math.exp(input.get(i, 0));
+			sum += softMax[i];
+		}
+		for(int i=0; i<softMax.length; i++)
+		{
+			softMax[i] = softMax[i]/sum;
+		}
 		double[][] softMaxData = {softMax};
 		return new SimpleMatrix(softMaxData).transpose();
-	}
-	
-	private double[] getSoftmax(double[] input)
-	{
-		double output[] = new double[input.length];
-		double sum = 0;
-		for(int i=0; i<input.length; i++)
-		{
-			output[i] = Math.exp(input[i]);
-			sum += output[i];
-		}
-		for(int i=0; i<output.length; i++)
-		{
-			output[i] = output[i]/sum;
-		}
-		return output;
 	}
 	
 	public double[] addExtraOne(double[] input)
