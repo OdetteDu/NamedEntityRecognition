@@ -9,11 +9,11 @@ import org.ejml.simple.*;
 
 public class FeatureFactory {
 
+	public static final int NON_EXISTING_VOCAB_INDEX = 0;
 
 	private FeatureFactory() {
 
 	}
-
 
 	static List<Datum> trainData;
 	/** Do not modify this method **/
@@ -44,7 +44,7 @@ public class FeatureFactory {
 			else
 			{
 				String[] bits = line.split("\\s+");
-				word = bits[0];
+				word = bits[0].toLowerCase();
 				label = bits[1];
 
 				if(word.equalsIgnoreCase("-DOCSTART-")) 
@@ -86,6 +86,7 @@ public class FeatureFactory {
 			}
 		}
 
+		allVecs = allVecs.transpose();
 		return allVecs;
 	}
 
