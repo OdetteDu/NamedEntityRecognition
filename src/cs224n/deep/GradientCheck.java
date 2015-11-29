@@ -1,7 +1,6 @@
 package cs224n.deep;
 
 import java.util.List;
-import java.io.BufferedWriter;
 import org.ejml.simple.SimpleMatrix;
 
 /** 
@@ -12,10 +11,7 @@ import org.ejml.simple.SimpleMatrix;
  */
 
 public class GradientCheck {
-    
-    //Currently unused
-    public static String historyLog = "gradchecks.log";  
-    
+        
     public static final double eps = 1e-4;
     public static final double abs_threshold = 1e-7;
     public static final double rel_threshold = 1e-9;
@@ -26,6 +22,8 @@ public class GradientCheck {
        derivatives,
      * calculates the relative and absolute error and logs them to file. 
      *
+     * @param Y: The actual label vector for a given example.
+     * 
      * @param weights: The weight matrices for the neural network.  By
      * convention, the last weight matrix is taken to be the input vector
      * X derived from vocabulary matrix L.
@@ -46,7 +44,8 @@ public class GradientCheck {
      * different network dimensions.
      */
 
-    public static boolean check(List<SimpleMatrix> weights, 
+    public static boolean check(SimpleMatrix Y, 
+				List<SimpleMatrix> weights, 
 				List<SimpleMatrix> matrixDerivatives, 
 				ObjectiveFunction objFn)
     {
@@ -67,16 +66,18 @@ public class GradientCheck {
 	    
 	    // Make sure dimensions match                                                                                                                       
 	    if (!((w.numRows() == dw.numRows())
-		  && (w.numCols() == dw.numCols())) ){
-		System.err.println("Error: Matrix and its derivative " 
-                                   + "are not the same dimension!: ");
-		w.printDimensions();
-		dw.printDimensions();
-		return false;
-	    } else {
-		flops += (w.numRows() + w.numCols());
+		  && (w.numCols() == dw.numCols())) )
+		{
+		    System.err.println("Error: Matrix and its derivative " 
+				       + "are not the same dimension!: ");
+		    w.printDimensions();
+		    dw.printDimensions();
+		    return false;
+		}
+	     else {
+		flops += (w.numRows() * w.numCols());
 	    }
-	    error += errFromMatrix(w, dw, objFn, X);
+	    error += errFromMatrix(Y, w, dw, objFn, X);
 
 	}
 	error = Math.sqrt(error);
@@ -92,7 +93,7 @@ public class GradientCheck {
     /*   Finds the error from the given matrix by deviating by eps in both
      *   directions.
      */
-    private static double errFromMatrix(SimpleMatrix matr, SimpleMatrix deriv,
+    private static double errFromMatrix(SimpleMatrix Y, SimpleMatrix matr, SimpleMatrix deriv,
 					ObjectiveFunction objFn, SimpleMatrix X)
     {
         double error = 0;
@@ -102,9 +103,9 @@ public class GradientCheck {
                 double prior = matr.get(r, c);
 
                 matr.set(r, c, prior + eps);
-                double higher = objFn.valueAt(X);
+                double higher = objFn.valueAt(Y, X);
                 matr.set(r, c, prior - eps);
-                double lower = objFn.valueAt(X);
+                double lower = objFn.valueAt(Y, X);
                 matr.set(r, c, prior);
 
                 double analytic_deriv = (higher - lower) / (2.0 * eps);
