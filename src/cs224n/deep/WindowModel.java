@@ -136,13 +136,14 @@ public class WindowModel implements ObjectiveFunction {
 					SimpleMatrix W2Prime = H1.transpose().mult(delta2); //101 * 5
 					SimpleMatrix b2Prime = delta2;
 					
-					SimpleMatrix delta1 = delta2.mult(W2.transpose()).elementMult(getDTanh(Z1)); //1 * 101
-					SimpleMatrix W1Prime = X.transpose().mult(delta1); //251 * 100
+					SimpleMatrix delta1 = delta2.mult(W2.transpose()).elementMult(getDTanh(Z1)); //1 * 100
+					SimpleMatrix W1Prime = X.transpose().mult(delta1); //250 * 100
+					SimpleMatrix b1Prime = delta1;
 					
-					SimpleMatrix XPrime = delta1.mult(W1.transpose()); //1 * 251
+					SimpleMatrix XPrime = delta1.mult(W1.transpose()); //1 * 250
 					
 					//Check
-					boolean gradientCheck = false;
+					boolean gradientCheck = true;
 					if (gradientCheck) {
 						List<SimpleMatrix> weights = new ArrayList<SimpleMatrix>();
 						weights.add(W2);
@@ -155,19 +156,23 @@ public class WindowModel implements ObjectiveFunction {
 						boolean isCorrect = GradientCheck.check(Y, weights, matrixDerivatives, this);
 						if(!isCorrect) {
 							System.out.println("Gradient is wrong!");
-						//	System.exit(-1);
+							for (int i=0; i<windowSize; i++) {
+								System.out.println(wordsInWindow[i].toString());
+							}
+							
 						}
 					}
 					
+					//Add regularization
+					W2Prime = W2Prime.plus(lambda, W2);
+					W1Prime = W1Prime.plus(lambda, W1);
+					
 					//Update weights
-					boolean regularize = true;
-					if(regularize) {
-						addRegularization(W2Prime, W2); 
-						addRegularization(W1Prime, W1); 
-					}
 					W2 = W2.minus(W2Prime.scale(alpha)); //101 * 5
 					W1 = W1.minus(W1Prime.scale(alpha)); //251 * 100
-					//updateWordVector(wordsInWindow, XPrime);
+					b2 = b2.minus(b2Prime).scale(alpha);
+					b1 = b1.minus(b1Prime).scale(alpha);
+					updateWordVector(wordsInWindow, XPrime);
 					
 					// Update cost
 					cost += -Math.log(Y.dot(P));
@@ -237,9 +242,9 @@ public class WindowModel implements ObjectiveFunction {
 	
 	private List<Datum> addPadding(List<Datum> words) {
 		List<Datum> paddedWords = new ArrayList<Datum>();
-		Datum start = new Datum(Datum.START_WORD, Datum.DEFAULT_LABEL);
-		Datum end = new Datum(Datum.END_WORD, Datum.DEFAULT_LABEL);
+		
 		for (int i=0;i<paddingSize;i++) {
+			Datum start = new Datum(Datum.START_WORD, Datum.DEFAULT_LABEL);
 			paddedWords.add( start);
 		}
 		
@@ -248,6 +253,7 @@ public class WindowModel implements ObjectiveFunction {
 		}
 		
 		for (int i=0;i<paddingSize;i++) {
+			Datum end = new Datum(Datum.END_WORD, Datum.DEFAULT_LABEL);
 			paddedWords.add(end);
 		}
 
@@ -289,6 +295,9 @@ public class WindowModel implements ObjectiveFunction {
 		int index;
 		if(FeatureFactory.wordToNum.containsKey(word))
 		{
+			if(word.equalsIgnoreCase(Datum.END_WORD)) {
+				index = 0;
+			}
 			index = FeatureFactory.wordToNum.get(word);
 		}
 		else
@@ -297,15 +306,6 @@ public class WindowModel implements ObjectiveFunction {
 		}
 
 		return getRow(L, index);
-	}
-	
-	private void addRegularization(SimpleMatrix wPrime, SimpleMatrix w) {
-		SimpleMatrix wCopy = w.copy();
-		for (int i=0;i<w.numCols();i++) {
-			wCopy.set(wCopy.numRows()-1, i, 0);
-		}
-		
-		wPrime = wPrime.plus(lambda, wCopy);
 	}
 	
 	private void updateWordVector(Datum[] wordsInWindow, SimpleMatrix vector)
