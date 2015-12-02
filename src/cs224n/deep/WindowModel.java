@@ -22,7 +22,7 @@ public class WindowModel implements ObjectiveFunction {
 	private int paddingSize;
 	
 	// Hyperparameter
-	private double lambda = 3;
+	private double lambda = 0;
 	private double alpha;
 	
 	public WindowModel(int _windowSize, int _hiddenSize, double _lr) {
@@ -102,6 +102,7 @@ public class WindowModel implements ObjectiveFunction {
 	{
 		System.out.println("W1: "+W1.numRows()+" * "+W1.numCols());
 		System.out.println("W2: "+W2.numRows()+" * "+W2.numCols());
+		System.out.println("alpha: "+ alpha +" labmda: "+lambda);
 		List<Sentence> trainSentences = getSentences(trainData);
 		
 		int iter = 0;
@@ -127,7 +128,7 @@ public class WindowModel implements ObjectiveFunction {
 					SimpleMatrix P = getSoftmax(O); //1 * 5
 					
 					//Back Propagation
-					SimpleMatrix Y = getY(wordsInWindow); //1 * 5
+					SimpleMatrix Y = getY(paddedWords.get(index).label); //1 * 5
 					SimpleMatrix delta2 = P.minus(Y); //1 * 5
 					SimpleMatrix W2Prime = H1.transpose().mult(delta2); //101 * 5
 					
@@ -163,7 +164,7 @@ public class WindowModel implements ObjectiveFunction {
 					}
 					W2 = W2.minus(W2Prime.scale(alpha)); //101 * 5
 					W1 = W1.minus(W1Prime.scale(alpha)); //251 * 100
-					updateWordVector(wordsInWindow, XPrime);
+					//updateWordVector(wordsInWindow, XPrime);
 					
 					// Update cost
 					cost += -Math.log(Y.dot(P));
@@ -330,13 +331,12 @@ public class WindowModel implements ObjectiveFunction {
 		}
 	}
 
-	private SimpleMatrix getY(Datum[] wordsInWindow)
+	private SimpleMatrix getY(String label)
 	{
 		double[] y = new double[Datum.POSSIBLE_LABELS.length];
-		String currLabel = wordsInWindow[wordsInWindow.length/2].label;
 		for (int i=0; i<y.length; i++)
 		{
-			if(currLabel.equals(Datum.POSSIBLE_LABELS[i]))
+			if(label.equals(Datum.POSSIBLE_LABELS[i]))
 			{
 				y[i] = 1; 
 			}
