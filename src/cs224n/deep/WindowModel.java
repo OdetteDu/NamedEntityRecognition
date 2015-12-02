@@ -14,7 +14,7 @@ public class WindowModel implements ObjectiveFunction {
 	private static int attempt = 1;
 	
 	private HashMap<String, String> baselineWordMap;
-	protected SimpleMatrix L, W1, W2;
+	protected SimpleMatrix L, W1, W2, b1, b2;
 	private int wordVectorSize;
 	private int hiddenSize;
 	
@@ -23,15 +23,16 @@ public class WindowModel implements ObjectiveFunction {
 	
 	// Hyperparameter
 	private double lambda = 0;
-	private double alpha;
+	private double alpha = 0.003;
 	
-	public WindowModel(int _windowSize, int _hiddenSize, double _lr) {
+	public WindowModel(int _windowSize, int _hiddenSize, double _lr, double _reg) {
 		this.baselineWordMap = new HashMap<String, String>();
 		this.L = FeatureFactory.allVecs;
 	//	this.L = SimpleMatrix.random(FeatureFactory.allVecs.numRows(),FeatureFactory.allVecs.numCols(), -2, 2, new Random());
 		this.wordVectorSize = L.numCols();
 		this.hiddenSize = _hiddenSize;
 		this.alpha = _lr;
+		this.lambda = _reg;
 		
 		this.windowSize = _windowSize;
 		this.paddingSize = _windowSize / 2;
@@ -44,10 +45,13 @@ public class WindowModel implements ObjectiveFunction {
 		int X = windowSize * wordVectorSize;
 		int H = hiddenSize; 
 		int K = Datum.POSSIBLE_LABELS.length;
-		double range = Math.sqrt(6) / Math.sqrt(X + H + 1);
-		W1 = SimpleMatrix.random(X + 1, H, -range, range, new Random()); //251 * 100
-		range = Math.sqrt(6) / Math.sqrt(H + 1+ K);
-		W2 = SimpleMatrix.random(H + 1,K, -range, range, new Random()); //101 * 5
+		double range = Math.sqrt(6) / Math.sqrt(X + H);
+		W1 = SimpleMatrix.random(X, H, -range, range, new Random()); //250 * 100
+		range = Math.sqrt(6) / Math.sqrt(H + K);
+		W2 = SimpleMatrix.random(H, K, -range, range, new Random()); //100 * 5
+		
+		b1 = new SimpleMatrix(1,H); 
+		b2 = new SimpleMatrix(1,K); 
 	}
 
 	/**
@@ -66,13 +70,12 @@ public class WindowModel implements ObjectiveFunction {
 	@Override
 	public double valueAt(SimpleMatrix label, SimpleMatrix input) {
 		
-		SimpleMatrix Z1 = input.mult(W1); //1 * 100
-		SimpleMatrix H1 = getTanh(Z1); //1 * 101
-		SimpleMatrix O = H1.mult(W2); //1 * 5
+		SimpleMatrix Z1 = input.mult(W1).plus(b1); //1 * 100
+		SimpleMatrix H1 = getTanh(Z1); //1 * 100
+		SimpleMatrix O = H1.mult(W2).plus(b2); //1 * 5
 		SimpleMatrix P = getSoftmax(O); //1 * 5
 		
 		double p = label.dot(P);
-		
 		return -Math.log(p);
 	}
 
@@ -121,19 +124,19 @@ public class WindowModel implements ObjectiveFunction {
 					}
 					
 					//Forward Pass
-					SimpleMatrix X = getWordVector(wordsInWindow); //1 * 251
-					SimpleMatrix Z1 = X.mult(W1); //1 * 100
-					SimpleMatrix H1 = getTanh(Z1); //1 * 101
-					SimpleMatrix O = H1.mult(W2); //1 * 5
+					SimpleMatrix X = getWordVector(wordsInWindow); //1 * 250
+					SimpleMatrix Z1 = X.mult(W1).plus(b1); //1 * 100
+					SimpleMatrix H1 = getTanh(Z1); //1 * 100
+					SimpleMatrix O = H1.mult(W2).plus(b2); //1 * 5
 					SimpleMatrix P = getSoftmax(O); //1 * 5
 					
 					//Back Propagation
 					SimpleMatrix Y = getY(paddedWords.get(index).label); //1 * 5
 					SimpleMatrix delta2 = P.minus(Y); //1 * 5
 					SimpleMatrix W2Prime = H1.transpose().mult(delta2); //101 * 5
+					SimpleMatrix b2Prime = delta2;
 					
 					SimpleMatrix delta1 = delta2.mult(W2.transpose()).elementMult(getDTanh(Z1)); //1 * 101
-					delta1 = removeExtraRow(delta1); //1 * 100
 					SimpleMatrix W1Prime = X.transpose().mult(delta1); //251 * 100
 					
 					SimpleMatrix XPrime = delta1.mult(W1.transpose()); //1 * 251
@@ -199,10 +202,10 @@ public class WindowModel implements ObjectiveFunction {
 				Datum word = wordsInWindow[wordsInWindow.length/2];
 				
 				//Forward Pass
-				SimpleMatrix X = getWordVector(wordsInWindow); //1 * 251
-				SimpleMatrix Z1 = X.mult(W1); //1 * 100
-				SimpleMatrix H1 = getTanh(Z1); //1 * 101
-				SimpleMatrix O = H1.mult(W2); //1 * 5
+				SimpleMatrix X = getWordVector(wordsInWindow); //1 * 250
+				SimpleMatrix Z1 = X.mult(W1).plus(b1); //1 * 100
+				SimpleMatrix H1 = getTanh(Z1); //1 * 100
+				SimpleMatrix O = H1.mult(W2).plus(b2); //1 * 5
 				SimpleMatrix P = getSoftmax(O); //1 * 5
 				
 				//Predict
@@ -268,7 +271,7 @@ public class WindowModel implements ObjectiveFunction {
 
 	private SimpleMatrix getWordVector(Datum[] wordsInWindow)
 	{
-		double[] finalVector = new double[wordVectorSize * wordsInWindow.length + 1];
+		double[] finalVector = new double[wordVectorSize * wordsInWindow.length];
 		for (int i=0; i<wordsInWindow.length; i++)
 		{
 			double[] wordVector = this.getWordVector(wordsInWindow[i].word);
@@ -277,10 +280,7 @@ public class WindowModel implements ObjectiveFunction {
 				finalVector[wordVectorSize * i + j] = wordVector[j];
 			}
 		}
-		//Bias term
-		finalVector[finalVector.length-1] = 1;
 		double [][] matrixData = {finalVector};
-		
 		return new SimpleMatrix(matrixData);
 	}
 
@@ -347,25 +347,23 @@ public class WindowModel implements ObjectiveFunction {
 
 	private SimpleMatrix getTanh(SimpleMatrix input)
 	{
-		double[] tanh = new double[input.numCols() + 1];
+		double[] tanh = new double[input.numCols()];
 		for (int i=0; i<input.numCols(); i++)
 		{
 			tanh[i] = Math.tanh(input.get(0, i));
 		}
-		tanh[tanh.length-1] = 1;
 		double[][] tanHData = {tanh};
 		return new SimpleMatrix(tanHData);
 	}
 
 	private SimpleMatrix getDTanh(SimpleMatrix input)
 	{
-		double[] tanh = new double[input.numCols() + 1];
+		double[] tanh = new double[input.numCols()];
 		for (int i=0; i<input.numCols(); i++)
 		{
 			tanh[i] = Math.tanh(input.get(0, i));
 			tanh[i] = 1 - tanh[i] * tanh[i];
 		}
-		tanh[tanh.length-1] = 1;
 		double[][] tanHData = {tanh};
 		return new SimpleMatrix(tanHData);
 	}

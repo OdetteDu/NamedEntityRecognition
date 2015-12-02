@@ -25,7 +25,7 @@ public class NER {
 	allVecs.printDimensions();
 	
 	// initialize model 
-	WindowModel model = new WindowModel(5, 100, 0.003);
+	WindowModel model = new WindowModel(5, 100, 0.003, 0);
 	model.initWeights();
 	model.train(trainData);
 	model.test(trainData);
