@@ -22,16 +22,17 @@ public class WindowModel implements ObjectiveFunction {
 	private int paddingSize;
 	
 	// Hyperparameter
-	private double lambda = 0;
-	private double alpha;
+	private double lambda = 10;
+	private double alpha = 0.003;
 	
-	public WindowModel(int _windowSize, int _hiddenSize, double _lr) {
+	public WindowModel(int _windowSize, int _hiddenSize, double _lr, double _reg) {
 		this.baselineWordMap = new HashMap<String, String>();
 		this.L = FeatureFactory.allVecs;
 	//	this.L = SimpleMatrix.random(FeatureFactory.allVecs.numRows(),FeatureFactory.allVecs.numCols(), -2, 2, new Random());
 		this.wordVectorSize = L.numCols();
 		this.hiddenSize = _hiddenSize;
 		this.alpha = _lr;
+		this.lambda = _reg;
 		
 		this.windowSize = _windowSize;
 		this.paddingSize = _windowSize / 2;
@@ -139,7 +140,7 @@ public class WindowModel implements ObjectiveFunction {
 					SimpleMatrix XPrime = delta1.mult(W1.transpose()); //1 * 251
 					
 					//Check
-					boolean gradientCheck = true;
+					boolean gradientCheck = false;
 					if (gradientCheck) {
 						List<SimpleMatrix> weights = new ArrayList<SimpleMatrix>();
 						weights.add(W2);
@@ -167,7 +168,7 @@ public class WindowModel implements ObjectiveFunction {
 					}
 					W2 = W2.minus(W2Prime.scale(alpha)); //101 * 5
 					W1 = W1.minus(W1Prime.scale(alpha)); //251 * 100
-					//updateWordVector(wordsInWindow, XPrime);
+					updateWordVector(wordsInWindow, XPrime);
 					
 					// Update cost
 					cost += -Math.log(Y.dot(P));
@@ -214,7 +215,7 @@ public class WindowModel implements ObjectiveFunction {
 			}
 		}
 
-		this.outputToFile("nn"+ attempt++ +".out", output);
+		this.outputToFile("nn-"+ alpha + "-" + lambda + "-" + attempt +".out", output);
 	}
 
 	private List<Sentence> getSentences(List<Datum> data) {
@@ -317,7 +318,7 @@ public class WindowModel implements ObjectiveFunction {
 		for (int i=0; i<wordsInWindow.length; i++)
 		{
 			int rowIndex;
-			if (FeatureFactory.wordToNum.containsKey(wordsInWindow[i]))
+			if (FeatureFactory.wordToNum.containsKey(wordsInWindow[i].word))
 			{
 				rowIndex = FeatureFactory.wordToNum.get(wordsInWindow[i].word);
 			}
