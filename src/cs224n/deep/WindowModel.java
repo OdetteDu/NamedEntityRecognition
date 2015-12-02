@@ -134,16 +134,14 @@ public class WindowModel implements ObjectiveFunction {
 					SimpleMatrix Y = getY(paddedWords.get(index).label); //1 * 5
 					SimpleMatrix delta2 = P.minus(Y); //1 * 5
 					SimpleMatrix W2Prime = H1.transpose().mult(delta2); //101 * 5
-					SimpleMatrix b2Prime = delta2;
 					
 					SimpleMatrix delta1 = delta2.mult(W2.transpose()).elementMult(getDTanh(Z1)); //1 * 100
 					SimpleMatrix W1Prime = X.transpose().mult(delta1); //250 * 100
-					SimpleMatrix b1Prime = delta1;
 					
 					SimpleMatrix XPrime = delta1.mult(W1.transpose()); //1 * 250
 					
 					//Check
-					boolean gradientCheck = true;
+					boolean gradientCheck = false;
 					if (gradientCheck) {
 						List<SimpleMatrix> weights = new ArrayList<SimpleMatrix>();
 						weights.add(W2);
@@ -159,7 +157,7 @@ public class WindowModel implements ObjectiveFunction {
 							for (int i=0; i<windowSize; i++) {
 								System.out.println(wordsInWindow[i].toString());
 							}
-							
+							System.exit(-1);
 						}
 					}
 					
@@ -170,8 +168,8 @@ public class WindowModel implements ObjectiveFunction {
 					//Update weights
 					W2 = W2.minus(W2Prime.scale(alpha)); //101 * 5
 					W1 = W1.minus(W1Prime.scale(alpha)); //251 * 100
-					b2 = b2.minus(b2Prime).scale(alpha);
-					b1 = b1.minus(b1Prime).scale(alpha);
+					b2 = b2.minus(delta2).scale(alpha);
+					b1 = b1.minus(delta1).scale(alpha);
 					updateWordVector(wordsInWindow, XPrime);
 					
 					// Update cost
@@ -295,9 +293,6 @@ public class WindowModel implements ObjectiveFunction {
 		int index;
 		if(FeatureFactory.wordToNum.containsKey(word))
 		{
-			if(word.equalsIgnoreCase(Datum.END_WORD)) {
-				index = 0;
-			}
 			index = FeatureFactory.wordToNum.get(word);
 		}
 		else
@@ -314,7 +309,7 @@ public class WindowModel implements ObjectiveFunction {
 		for (int i=0; i<wordsInWindow.length; i++)
 		{
 			int rowIndex;
-			if (FeatureFactory.wordToNum.containsKey(wordsInWindow[i]))
+			if (FeatureFactory.wordToNum.containsKey(wordsInWindow[i].word))
 			{
 				rowIndex = FeatureFactory.wordToNum.get(wordsInWindow[i].word);
 			}
@@ -398,17 +393,6 @@ public class WindowModel implements ObjectiveFunction {
 //		System.out.println(checkSum);
 		double[][] softMaxData = {output};
 		return new SimpleMatrix(softMaxData);
-	}
-
-	private SimpleMatrix removeExtraRow(SimpleMatrix input)
-	{
-		double[] output = new double[input.numCols() - 1];
-		for (int i=0; i<input.numCols() - 1; i++)
-		{
-			output[i] = input.get(0, i);
-		}
-		double[][] outputData = {output};
-		return new SimpleMatrix(outputData);
 	}
 
 	private double[] getRow(SimpleMatrix sm, int row)
