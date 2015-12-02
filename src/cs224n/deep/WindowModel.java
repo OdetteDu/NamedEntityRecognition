@@ -139,7 +139,7 @@ public class WindowModel implements ObjectiveFunction {
 					SimpleMatrix XPrime = delta1.mult(W1.transpose()); //1 * 251
 					
 					//Check
-					boolean gradientCheck = false;
+					boolean gradientCheck = true;
 					if (gradientCheck) {
 						List<SimpleMatrix> weights = new ArrayList<SimpleMatrix>();
 						weights.add(W2);
@@ -152,6 +152,9 @@ public class WindowModel implements ObjectiveFunction {
 						boolean isCorrect = GradientCheck.check(Y, weights, matrixDerivatives, this);
 						if(!isCorrect) {
 							System.out.println("Gradient is wrong!");
+							for (int i=0; i<windowSize; i++) {
+								System.out.println(wordsInWindow[i].toString()) ;
+							}
 						//	System.exit(-1);
 						}
 					}
