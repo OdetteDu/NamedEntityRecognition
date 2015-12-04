@@ -9,7 +9,7 @@ import java.text.*;
 import java.io.*;
 
 public class WindowModel implements ObjectiveFunction {
-	public static final int MAX_ITER = 10;
+	public static final int MAX_ITER = 20;
 	public static final double COST_THRESHOLD = 0.01;
 	private static int attempt = 1;
 	
@@ -27,7 +27,7 @@ public class WindowModel implements ObjectiveFunction {
 	
 	public WindowModel(int _windowSize, int _hiddenSize, double _lr, double _reg) {
 		this.baselineWordMap = new HashMap<String, String>();
-		this.L = FeatureFactory.allVecs;
+		this.L = FeatureFactory.allVecs.copy();
 	//	this.L = SimpleMatrix.random(FeatureFactory.allVecs.numRows(),FeatureFactory.allVecs.numCols(), -2, 2, new Random());
 		this.wordVectorSize = L.numCols();
 		this.hiddenSize = _hiddenSize;
@@ -55,12 +55,12 @@ public class WindowModel implements ObjectiveFunction {
 	 * Simplest SGD training
 	 */
 	public void train(List<Datum> trainData) {
-	//	this.baselineTrain(trainData);
+//		this.baselineTrain(trainData);
 		this.nnTrain(trainData);
 	}
 
 	public void test(List<Datum> testData) {
-	// 	this.baselineTest(testData);
+//	 	this.baselineTest(testData);
 		this.nnTest(testData);
 	}
 	
@@ -96,7 +96,7 @@ public class WindowModel implements ObjectiveFunction {
 			}
 			output.add(new Prediction(word, datum.label, predictedLabel));
 		}
-		this.outputToFile("baseline.out", output);
+		this.outputToFile("baseline" + attempt +".out", output);
 	}
 
 	private void nnTrain(List<Datum> trainData)
@@ -107,6 +107,7 @@ public class WindowModel implements ObjectiveFunction {
 		List<Sentence> trainSentences = getSentences(trainData);
 		
 		int iter = 0;
+		int failure = 0;
 		while (iter < MAX_ITER) {
 			double cost = 0;
 			int numInstance = 0;
@@ -156,16 +157,14 @@ public class WindowModel implements ObjectiveFunction {
 							for (int i=0; i<windowSize; i++) {
 								System.out.println(wordsInWindow[i].toString()) ;
 							}
-						//	System.exit(-1);
+							failure++;
 						}
 					}
 					
 					//Update weights
-					boolean regularize = true;
-					if(regularize) {
-						addRegularization(W2Prime, W2); 
-						addRegularization(W1Prime, W1); 
-					}
+					addRegularization(W2Prime, W2); 
+					addRegularization(W1Prime, W1); 
+
 					W2 = W2.minus(W2Prime.scale(alpha)); //101 * 5
 					W1 = W1.minus(W1Prime.scale(alpha)); //251 * 100
 					updateWordVector(wordsInWindow, XPrime);
@@ -183,7 +182,8 @@ public class WindowModel implements ObjectiveFunction {
 			if (cost < COST_THRESHOLD) break;
 		}
 		
-		System.out.println("Finished Training");
+		outputMatrixToFile("updatedWordVectors.txt",L);
+		System.out.println("Finished Training with " + failure + " gradient failure");
 	}
 
 	private void nnTest(List<Datum> testData)
@@ -214,8 +214,8 @@ public class WindowModel implements ObjectiveFunction {
 				output.add(new Prediction(word.word, word.label, label));
 			}
 		}
-
-		this.outputToFile("nn-"+ alpha + "-" + lambda + "-" + attempt +".out", output);
+		
+		this.outputToFile("nn-"+ alpha + "-" + lambda + "-" + attempt++ +".out", output);
 	}
 
 	private List<Sentence> getSentences(List<Datum> data) {
@@ -455,6 +455,26 @@ public class WindowModel implements ObjectiveFunction {
 			BufferedWriter bw = new BufferedWriter(new FileWriter(file));
 			bw.write(outputContent);
 			bw.close();
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	public void outputMatrixToFile(String fileName, SimpleMatrix sm) {
+
+		try (BufferedWriter bw = new BufferedWriter(new FileWriter(new File(fileName)))){
+			for (int i=0; i<sm.numRows(); i++)
+			{
+				String outputRow = "";
+				for (int j=0; j<sm.numCols(); j++)
+				{
+					outputRow += sm.get(i, j) + "";
+				}
+				outputRow += "\n";
+				bw.write(outputRow);
+			}
 		} 
 		catch (IOException e) 
 		{

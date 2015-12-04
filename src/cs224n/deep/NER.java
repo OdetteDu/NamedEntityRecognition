@@ -18,6 +18,7 @@ public class NER {
 	// this reads in the train and test datasets
 	List<Datum> trainData = FeatureFactory.readTrainData(args[0]);
 	List<Datum> testData = FeatureFactory.readTestData(args[1]);	
+
 	
 	//	read the train and test data
 	FeatureFactory.initializeVocab("./data/vocab.txt");
@@ -30,5 +31,7 @@ public class NER {
 	model.train(trainData);
 	model.test(trainData);
 	model.test(testData);
+
+	
     }
 }
