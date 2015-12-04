@@ -51,9 +51,9 @@ public class FeatureFactory {
 				{
 					continue; // Ignore document boundary
 				}
-			//	else if(word.matches(".*\\d.*")) {
-		//			word = word.replaceAll("\\d", "DG");
-		//		}
+				else if(word.matches(".*\\d.*")) {
+					word = word.replaceAll("\\d", "DG");
+				}
 			}
 
 			Datum datum = new Datum(word, label);

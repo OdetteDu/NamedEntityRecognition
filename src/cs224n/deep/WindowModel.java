@@ -14,9 +14,9 @@ public class WindowModel implements ObjectiveFunction {
 	private static int attempt = 1;
 	
 	private HashMap<String, String> baselineWordMap;
-	protected SimpleMatrix L, W1, W2;
+	protected SimpleMatrix L, W1, W2, W3;
 	private int wordVectorSize;
-	private int hiddenSize;
+	private int hidden1, hidden2;
 	
 	private int windowSize;
 	private int paddingSize;
@@ -25,12 +25,12 @@ public class WindowModel implements ObjectiveFunction {
 	private double lambda = 10;
 	private double alpha = 0.003;
 	
-	public WindowModel(int _windowSize, int _hiddenSize, double _lr, double _reg) {
+	public WindowModel(int _windowSize, int _hiddenSize, int _hiddenSize2, double _lr, double _reg) {
 		this.baselineWordMap = new HashMap<String, String>();
 		this.L = FeatureFactory.allVecs.copy();
-	//	this.L = SimpleMatrix.random(FeatureFactory.allVecs.numRows(),FeatureFactory.allVecs.numCols(), -2, 2, new Random());
 		this.wordVectorSize = L.numCols();
-		this.hiddenSize = _hiddenSize;
+		this.hidden1 = _hiddenSize;
+		this.hidden2 = _hiddenSize2;
 		this.alpha = _lr;
 		this.lambda = _reg;
 		
@@ -42,34 +42,37 @@ public class WindowModel implements ObjectiveFunction {
 	 * Initializes the weights randomly.
 	 */
 	public void initWeights() {
-		int X = windowSize * wordVectorSize;
-		int H = hiddenSize; 
+		int X = windowSize * wordVectorSize; 
 		int K = Datum.POSSIBLE_LABELS.length;
-		double range = Math.sqrt(6) / Math.sqrt(X + H + 1);
-		W1 = SimpleMatrix.random(X + 1, H, -range, range, new Random()); //251 * 100
-		range = Math.sqrt(6) / Math.sqrt(H + 1+ K);
-		W2 = SimpleMatrix.random(H + 1,K, -range, range, new Random()); //101 * 5
+		double range = Math.sqrt(6) / Math.sqrt(X + hidden1 + 1);
+		W1 = SimpleMatrix.random(X + 1, hidden1, -range, range, new Random()); //251 * H1
+		range = Math.sqrt(6) / Math.sqrt(hidden1 + hidden2 + 1);
+		W2 = SimpleMatrix.random(hidden1 + 1, hidden2, -range, range, new Random()); //H1+1 * H2
+		range = Math.sqrt(6) / Math.sqrt(hidden2 + 1+ K);
+		W3 = SimpleMatrix.random(hidden2 + 1,K, -range, range, new Random()); //H2 * 5
 	}
 
 	/**
 	 * Simplest SGD training
 	 */
 	public void train(List<Datum> trainData) {
-//		this.baselineTrain(trainData);
+		this.baselineTrain(trainData);
 		this.nnTrain(trainData);
 	}
 
 	public void test(List<Datum> testData) {
-//	 	this.baselineTest(testData);
+	 	this.baselineTest(testData);
 		this.nnTest(testData);
 	}
 	
 	@Override
 	public double valueAt(SimpleMatrix label, SimpleMatrix input) {
 		
-		SimpleMatrix Z1 = input.mult(W1); //1 * 100
-		SimpleMatrix H1 = getTanh(Z1); //1 * 101
-		SimpleMatrix O = H1.mult(W2); //1 * 5
+		SimpleMatrix Z1 = input.mult(W1); //1 * H1
+		SimpleMatrix H1 = getTanh(Z1); //1 * H1+1
+		SimpleMatrix Z2 = H1.mult(W2); //1 * H2
+		SimpleMatrix H2 = getTanh(Z2); //1 * H2+1
+		SimpleMatrix O = H2.mult(W3); //1 * 5
 		SimpleMatrix P = getSoftmax(O); //1 * 5
 		
 		double p = label.dot(P);
@@ -103,6 +106,7 @@ public class WindowModel implements ObjectiveFunction {
 	{
 		System.out.println("W1: "+W1.numRows()+" * "+W1.numCols());
 		System.out.println("W2: "+W2.numRows()+" * "+W2.numCols());
+		System.out.println("W3: "+W3.numRows()+" * "+W3.numCols());
 		System.out.println("alpha: "+ alpha +" labmda: "+lambda);
 		List<Sentence> trainSentences = getSentences(trainData);
 		
@@ -111,6 +115,10 @@ public class WindowModel implements ObjectiveFunction {
 		while (iter < MAX_ITER) {
 			double cost = 0;
 			int numInstance = 0;
+			// Shuffle
+			long seed = System.nanoTime();
+			Collections.shuffle(trainSentences, new Random(seed));
+			//Train
 			for ( Sentence sentence : trainSentences) {
 				List<Datum> paddedWords = addPadding(sentence.getWords());
 				
@@ -124,15 +132,21 @@ public class WindowModel implements ObjectiveFunction {
 					
 					//Forward Pass
 					SimpleMatrix X = getWordVector(wordsInWindow); //1 * 251
-					SimpleMatrix Z1 = X.mult(W1); //1 * 100
-					SimpleMatrix H1 = getTanh(Z1); //1 * 101
-					SimpleMatrix O = H1.mult(W2); //1 * 5
+					SimpleMatrix Z1 = X.mult(W1); //1 * H1
+					SimpleMatrix H1 = getTanh(Z1); //1 * H1+1
+					SimpleMatrix Z2 = H1.mult(W2); //1 * H2
+					SimpleMatrix H2 = getTanh(Z2); //1 * H2+1
+					SimpleMatrix O = H2.mult(W3); //1 * 5
 					SimpleMatrix P = getSoftmax(O); //1 * 5
 					
 					//Back Propagation
 					SimpleMatrix Y = getY(paddedWords.get(index).label); //1 * 5
-					SimpleMatrix delta2 = P.minus(Y); //1 * 5
-					SimpleMatrix W2Prime = H1.transpose().mult(delta2); //101 * 5
+					SimpleMatrix delta3 = P.minus(Y); //1 * 5
+					SimpleMatrix W3Prime = H2.transpose().mult(delta3); //101 * 5
+					
+					SimpleMatrix delta2 = delta3.mult(W3.transpose()).elementMult(getDTanh(Z2)); //1 * 101
+					delta2 = removeExtraRow(delta2); //1 * 100
+					SimpleMatrix W2Prime = H1.transpose().mult(delta2); //251 * 100
 					
 					SimpleMatrix delta1 = delta2.mult(W2.transpose()).elementMult(getDTanh(Z1)); //1 * 101
 					delta1 = removeExtraRow(delta1); //1 * 100
@@ -144,10 +158,12 @@ public class WindowModel implements ObjectiveFunction {
 					boolean gradientCheck = false;
 					if (gradientCheck) {
 						List<SimpleMatrix> weights = new ArrayList<SimpleMatrix>();
+						weights.add(W3);
 						weights.add(W2);
 						weights.add(W1);
 						weights.add(X);
 						List<SimpleMatrix> matrixDerivatives = new ArrayList<SimpleMatrix>();
+						matrixDerivatives.add(W3Prime);
 						matrixDerivatives.add(W2Prime);
 						matrixDerivatives.add(W1Prime);
 						matrixDerivatives.add(XPrime);
@@ -162,11 +178,13 @@ public class WindowModel implements ObjectiveFunction {
 					}
 					
 					//Update weights
+					addRegularization(W3Prime, W3); 
 					addRegularization(W2Prime, W2); 
 					addRegularization(W1Prime, W1); 
 
-					W2 = W2.minus(W2Prime.scale(alpha)); //101 * 5
-					W1 = W1.minus(W1Prime.scale(alpha)); //251 * 100
+					W3 = W3.minus(W3Prime.scale(alpha)); //H2+1 * 5
+					W2 = W2.minus(W2Prime.scale(alpha)); //H1+1 * H2
+					W1 = W1.minus(W1Prime.scale(alpha)); //X+1 * H1
 					updateWordVector(wordsInWindow, XPrime);
 					
 					// Update cost
@@ -182,7 +200,6 @@ public class WindowModel implements ObjectiveFunction {
 			if (cost < COST_THRESHOLD) break;
 		}
 		
-		outputMatrixToFile("updatedWordVectors.txt",L);
 		System.out.println("Finished Training with " + failure + " gradient failure");
 	}
 
@@ -204,9 +221,11 @@ public class WindowModel implements ObjectiveFunction {
 				
 				//Forward Pass
 				SimpleMatrix X = getWordVector(wordsInWindow); //1 * 251
-				SimpleMatrix Z1 = X.mult(W1); //1 * 100
-				SimpleMatrix H1 = getTanh(Z1); //1 * 101
-				SimpleMatrix O = H1.mult(W2); //1 * 5
+				SimpleMatrix Z1 = X.mult(W1); //1 * H1
+				SimpleMatrix H1 = getTanh(Z1); //1 * H1+1
+				SimpleMatrix Z2 = H1.mult(W2); //1 * H2
+				SimpleMatrix H2 = getTanh(Z2); //1 * H2+1
+				SimpleMatrix O = H2.mult(W3); //1 * 5
 				SimpleMatrix P = getSoftmax(O); //1 * 5
 				
 				//Predict
