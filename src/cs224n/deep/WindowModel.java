@@ -36,7 +36,6 @@ public class WindowModel implements ObjectiveFunction {
 		
 		this.windowSize = _windowSize;
 		this.paddingSize = _windowSize / 2;
-		this.outputMatrixToFile("wordVector.txt", L);
 	}
 
 	/**
