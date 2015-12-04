@@ -36,6 +36,7 @@ public class WindowModel implements ObjectiveFunction {
 		
 		this.windowSize = _windowSize;
 		this.paddingSize = _windowSize / 2;
+		this.outputMatrixToFile("wordVector.txt", L);
 	}
 
 	/**
@@ -443,6 +444,35 @@ public class WindowModel implements ObjectiveFunction {
 		for (Prediction prediction : predictions)
 		{
 			outputContent += prediction + "\n";
+		}
+
+		try 
+		{
+			File file = new File(fileName);
+			if (!file.exists()) 
+			{
+				file.createNewFile();
+			}
+			BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+			bw.write(outputContent);
+			bw.close();
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	public void outputMatrixToFile(String fileName, SimpleMatrix sm) {
+		
+		String outputContent = "";
+		for (int i=0; i<sm.numRows(); i++)
+		{
+			for (int j=0; j<sm.numCols(); j++)
+			{
+				outputContent += sm.get(i, j) + "";
+			}
+			outputContent += "\n";
 		}
 
 		try 
